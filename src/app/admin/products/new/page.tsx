@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, Upload, X, Plus, Sparkles } from 'lucide-react';
@@ -17,6 +17,15 @@ export default function NewProductPage() {
   });
   const [images, setImages] = useState<File[]>([]);
   const [fitments, setFitments] = useState<{ makeId: string; modelId: string; yearStart: string; yearEnd: string; trim: string; engine: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; slug: string }[]>([]);
+
+  // Fetch categories from DB
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => { if (Array.isArray(data)) setCategories(data); })
+      .catch(console.error);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -55,11 +64,40 @@ export default function NewProductPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // In production: upload images, then create product via API
+      const payload: any = {
+        name: form.name,
+        description: form.description,
+        shortDescription: form.shortDescription || undefined,
+        price: parseFloat(form.price),
+        compareAtPrice: form.compareAtPrice ? parseFloat(form.compareAtPrice) : undefined,
+        costPrice: form.costPrice ? parseFloat(form.costPrice) : undefined,
+        stock: parseInt(form.stock) || 0,
+        lowStockThreshold: parseInt(form.lowStockThreshold) || 5,
+        sku: form.sku,
+        brandName: form.brandName || undefined,
+        status: form.status,
+        featured: form.featured,
+        metaTitle: form.metaTitle || undefined,
+        metaDescription: form.metaDescription || undefined,
+        metaKeywords: form.metaKeywords || undefined,
+      };
+      if (form.categoryId) payload.categoryId = form.categoryId;
+
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to create product');
+      }
+
       toast.success('Product created successfully!');
       router.push('/admin/products');
-    } catch {
-      toast.error('Failed to create product');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create product');
     } finally {
       setLoading(false);
     }
@@ -225,14 +263,9 @@ export default function NewProductPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                 <select name="categoryId" value={form.categoryId} onChange={handleChange} className="input-field">
                   <option value="">Select category</option>
-                  <option value="brakes">Brakes</option>
-                  <option value="engine-parts">Engine Parts</option>
-                  <option value="filters">Filters</option>
-                  <option value="lighting">Lighting</option>
-                  <option value="suspension">Suspension</option>
-                  <option value="electrical">Electrical</option>
-                  <option value="body-parts">Body Parts</option>
-                  <option value="interior">Interior</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
