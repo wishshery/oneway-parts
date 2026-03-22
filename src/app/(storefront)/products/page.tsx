@@ -20,7 +20,8 @@ function CatalogContent() {
   const searchParams = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
   const [sortBy, setSortBy] = useState('newest');
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(500);
   const [showFilters, setShowFilters] = useState(false);
   const [gridView, setGridView] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
@@ -42,8 +43,8 @@ function CatalogContent() {
         if (searchQuery) {
           params.set('search', searchQuery);
         }
-        if (priceRange[0] > 0) params.set('minPrice', String(priceRange[0]));
-        if (priceRange[1] < 500) params.set('maxPrice', String(priceRange[1]));
+        if (minPrice > 0) params.set('minPrice', String(minPrice));
+        if (maxPrice < 500) params.set('maxPrice', String(maxPrice));
 
         const res = await fetch(`/api/products?${params.toString()}`);
         const data = await res.json();
@@ -52,13 +53,13 @@ function CatalogContent() {
             id: p.id,
             name: p.name,
             slug: p.slug,
-            price: p.price,
-            compareAtPrice: p.compareAtPrice,
+            price: Number(p.price),
+            compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
             image: p.image || '/images/placeholder.svg',
             sku: p.sku,
             stock: p.stock,
-            rating: p.rating,
-            reviewCount: p.reviewCount,
+            rating: p.rating != null ? Number(p.rating) : undefined,
+            reviewCount: p.reviewCount || 0,
             brandName: p.brandName,
             category: p.category?.name || '',
           })));
@@ -71,7 +72,7 @@ function CatalogContent() {
       }
     }
     fetchProducts();
-  }, [selectedCategory, sortBy, searchQuery, priceRange]);
+  }, [selectedCategory, sortBy, searchQuery, minPrice, maxPrice]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -134,16 +135,16 @@ function CatalogContent() {
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                value={priceRange[0]}
-                onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                value={minPrice}
+                onChange={(e) => setMinPrice(Number(e.target.value))}
                 className="input-field w-20 text-sm py-2"
                 placeholder="Min"
               />
               <span className="text-gray-400">—</span>
               <input
                 type="number"
-                value={priceRange[1]}
-                onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(Number(e.target.value))}
                 className="input-field w-20 text-sm py-2"
                 placeholder="Max"
               />
@@ -152,7 +153,7 @@ function CatalogContent() {
 
           {selectedCategory !== 'All' && (
             <button
-              onClick={() => { setSelectedCategory('All'); setPriceRange([0, 500]); }}
+              onClick={() => { setSelectedCategory('All'); setMinPrice(0); setMaxPrice(500); }}
               className="flex items-center gap-1 text-sm text-brand-500 hover:text-brand-600"
             >
               <X className="h-3 w-3" /> Clear filters
